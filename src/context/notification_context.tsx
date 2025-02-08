@@ -1,6 +1,7 @@
 "use client";
 import { toast } from "@/hooks/use-toast";
 import React, { useEffect, createContext, useContext, useState } from "react";
+import fetchHelpers from "@/hooks/fetchHelpers";
 
 import slotifyClient from "@/hooks/fetch";
 
@@ -34,11 +35,7 @@ export function NotificationProvider({
         "/api/users/me/notifications",
       );
       if (error) {
-        toast({
-          title: "Error",
-          description: error,
-          variant: "destructive",
-        });
+        fetchHelpers.toastDestructiveError(error as unknown as undefined);
       }
       if (data) {
         setNotifications((prev) => [...prev, ...data]);
@@ -85,11 +82,7 @@ export function NotificationProvider({
         title: data,
       });
     } else {
-      toast({
-        title: "Error",
-        description: error,
-        variant: "destructive",
-      });
+      fetchHelpers.toastDestructiveError(error as unknown as undefined);
     }
   }
 

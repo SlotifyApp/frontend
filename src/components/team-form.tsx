@@ -24,7 +24,7 @@ import {
 import { Input } from "@/components/ui/input";
 import slotifyClient from "@/hooks/fetch";
 import { Team } from "./team-list";
-import { toast } from "@/hooks/use-toast";
+import fetchHelpers from "@/hooks/fetchHelpers";
 
 const formSchema = z.object({
   name: z.string().min(2, {
@@ -57,11 +57,7 @@ export function ProfileForm({ teams, onSetYourTeamsAction }: ProfileFormProps) {
       onSetYourTeamsAction([data, ...teams]);
     }
     if (error) {
-      toast({
-        title: "Error",
-        description: error,
-        variant: "destructive",
-      });
+      fetchHelpers.toastDestructiveError(error as unknown as undefined);
     }
 
     console.log(values);

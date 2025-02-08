@@ -28,6 +28,8 @@ function classNames(...classes: (string | undefined | null | false)[]) {
 
 export default function Navbar() {
   const handleLogout = async () => {
+    //TODO: Try catch needed here, as with all client fetches as this could fail
+    //(say API is not running)
     const { error } = await slotifyClient.POST("/api/users/me/logout", {});
     if (error) {
       console.log(`error: ${JSON.stringify(error)}`);

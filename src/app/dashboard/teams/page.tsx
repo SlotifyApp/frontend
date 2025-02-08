@@ -6,9 +6,9 @@ import { TeamList, Team } from "@/components/team-list";
 import { TeamMembers, Member } from "@/components/team-members";
 import { JoinableTeams } from "@/components/joinable-teams";
 import slotifyClient from "@/hooks/fetch";
-import { toast } from "@/hooks/use-toast";
 import { ProfileForm } from "@/components/team-form";
 import { Skeleton } from "@/components/ui/skeleton";
+import fetchHelpers from "@/hooks/fetchHelpers";
 
 function LoadingDashboardTeams() {
   return (
@@ -52,62 +52,32 @@ export default function TeamsPage() {
       setJoinableTeams(joinableTeams.filter((team) => team.id !== teamID));
     }
     if (error) {
-      toast({
-        title: "Error",
-        description: error,
-        variant: "destructive",
-      });
+      fetchHelpers.toastDestructiveError(error);
     }
   };
 
   // On every page refresh, set yourTeams and joinableTeams
   useEffect(() => {
     const getUserTeams = async () => {
-      // This code is ugly, but needs to be done for the refresh.
-      // It works, but we need better code
-      const { data, error, response } = await slotifyClient.GET(
-        "/api/teams/me",
-        {},
-      );
-      if (error && response.status == 401) {
-        const { error, response } = await slotifyClient.POST(
-          "/api/refresh",
+      // This code is less ugly now and needs to be done for the refresh.
+      const teamRoute = "/api/teams/me";
+      const getUserTeamsData = async () => {
+        //TODO: try-catch
+        const { data, error, response } = await slotifyClient.GET(
+          teamRoute,
           {},
         );
-        if (response.status == 401) {
-          // The refresh token was invalid, could not refresh
-          // so back to login. This has to be done for every fetch
-          window.location.href = "/login";
-        } else if (response.status == 201) {
-          //retry the /user route
-          const { data, error, response } = await slotifyClient.GET(
-            "/api/teams/me",
-            {},
-          );
-          if (response.status == 401) {
-            //MSAL client may no longer have user in cache, no other option other than
-            //to log out
-            await slotifyClient.POST("/api/users/me/logout", {});
-            window.location.href = "/login";
-          }
-          if (error) {
-            toast({
-              title: "Error",
-              description: error,
-              variant: "destructive",
-            });
-          } else if (data) {
-            setYourTeams(data);
-          }
-        } else if (error) {
-          toast({
-            title: "Error",
-            description: error,
-            variant: "destructive",
-          });
+        if (error && response.status == 401) {
+          const refreshErrorOccurred =
+            await fetchHelpers.refreshRetryAPIroute(teamRoute);
+          return refreshErrorOccurred ? null : data;
         }
-      } else if (data) {
-        setYourTeams(data);
+        return data;
+      };
+
+      const teamsData = await getUserTeamsData();
+      if (teamsData) {
+        setYourTeams(teamsData);
       }
     };
     const getJoinableTeams = async () => {
@@ -116,17 +86,15 @@ export default function TeamsPage() {
         setJoinableTeams(data);
       }
       if (error) {
-        toast({
-          title: "Error",
-          description: error,
-          variant: "destructive",
-        });
+        fetchHelpers.toastDestructiveError(error);
       }
     };
     const getTeamMembers = async () => {
       if (!selectedTeam) {
         return;
       }
+
+      //TODO: Refresh and try-catch
       const teamID = selectedTeam?.id;
       const { data, error } = await slotifyClient.GET(
         "/api/teams/{teamID}/users",
@@ -140,11 +108,7 @@ export default function TeamsPage() {
         setMembers(data);
       }
       if (error) {
-        toast({
-          title: "Error",
-          description: error,
-          variant: "destructive",
-        });
+        fetchHelpers.toastDestructiveError(error as unknown as undefined);
       }
     };
 
