@@ -24,8 +24,6 @@ import {
 import { cn } from "@/lib/utils";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardHeader } from "@/components/ui/card";
-import slotifyClient from "@/hooks/fetch";
-import { toast } from "@/hooks/use-toast";
 import { CalendarEvent } from "@/components/calendar/calendar";
 import {
   Dialog,
@@ -36,6 +34,7 @@ import {
 } from "./ui/dialog";
 import { ScrollArea } from "./ui/scroll-area";
 import Link from "next/link";
+import fetchHelpers from "@/hooks/fetchHelpers";
 
 export function CalendarOverview() {
   const [isDayEventsDialogOpen, setIsDayEventsDialogOpen] = useState(false);
@@ -68,72 +67,22 @@ export function CalendarOverview() {
   useEffect(() => {
     //TODO: Use new fetchhelpers
     const fetchCalendar = async () => {
+      const calenRoute = "/api/calendar/me";
       const startFormatted = weekStart.toISOString().slice(0, 19) + "Z";
       const endFormatted = weekEnd.toISOString().slice(0, 19) + "Z";
-
-      const { data, error, response } = await slotifyClient.GET(
-        "/api/calendar/me",
-        {
-          params: {
-            query: {
-              start: startFormatted,
-              end: endFormatted,
-            },
+      const calenData = await fetchHelpers.getAPIrouteData(calenRoute, {
+        params: {
+          query: {
+            start: startFormatted,
+            end: endFormatted,
           },
         },
-      );
-
-      if (error && response.status == 401) {
-        const { error, response } = await slotifyClient.POST(
-          "/api/refresh",
-          {},
-        );
-        if (response.status == 401) {
-          // The refresh token was invalid, could not refresh
-          // so back to login. This has to be done for every fetch
-          await slotifyClient.POST("/api/users/me/logout", {});
-          window.location.href = "/login";
-        } else if (response.status == 201) {
-          const { data, error, response } = await slotifyClient.GET(
-            "/api/calendar/me",
-            {
-              params: {
-                query: {
-                  start: startFormatted,
-                  end: endFormatted,
-                },
-              },
-            },
-          );
-          if (response.status == 401) {
-            //MSAL client may no longer have user in cache, no other option other than
-            //to log out
-            await slotifyClient.POST("/api/users/me/logout", {});
-            window.location.href = "/login";
-          }
-          if (error) {
-            toast({
-              title: "Error",
-              description: error,
-              variant: "destructive",
-            });
-          } else if (data) {
-            console.log(`Setting calendar to ${JSON.stringify(data)}`);
-            setCalendar(data);
-          }
-        } else if (error) {
-          toast({
-            title: "Error",
-            description: error,
-            variant: "destructive",
-          });
-        }
-      } else if (data) {
-        console.log(`Setting calendar to ${JSON.stringify(data)}`);
-        setCalendar(data);
+      });
+      if (Array.isArray(calenData)) {
+        console.log(`Setting calendar to ${JSON.stringify(calenData)}`);
+        setCalendar(calenData);
       }
     };
-
     fetchCalendar();
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [currentWeek]);

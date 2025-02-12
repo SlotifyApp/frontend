@@ -5,10 +5,9 @@ import { Input } from "@/components/ui/input";
 import { TeamList, Team } from "@/components/team-list";
 import { TeamMembers, Member } from "@/components/team-members";
 import { JoinableTeams } from "@/components/joinable-teams";
-import slotifyClient from "@/hooks/fetch";
-import { toast } from "@/hooks/use-toast";
 import { ProfileForm } from "@/components/team-form";
 import { Skeleton } from "@/components/ui/skeleton";
+import fetchHelpers from "@/hooks/fetchHelpers";
 
 function LoadingDashboardTeams() {
   return (
@@ -38,113 +37,63 @@ export default function TeamsPage() {
   //TODO: Handle 401 like dashboard
 
   const handleJoinTeam = async (teamID: number) => {
-    const { data, error } = await slotifyClient.POST(
-      "/api/teams/{teamID}/users/me",
-      {
-        params: {
-          path: { teamID: teamID },
-        },
+    // UPDATE: Added /refresh route from fetchHelpers here.
+    // Type Guard to check if userData is of interface type "Team"
+    function isTeam(data: unknown): data is Team {
+      if (typeof data != "object" || data == null) {
+        return false;
+      }
+      const obj = data as Record<string, unknown>;
+      return (
+        "id" in obj && typeof obj.id === "number" &&
+        "name" in obj && typeof obj.email === "string"
+      );
+    }
+
+    const userTeamsRoute = "/api/teams/{teamID}/users/me";
+    const data = await fetchHelpers.postAPIrouteData(userTeamsRoute, {
+      params: {
+        path: { teamID: teamID },
       },
-    );
-    console.log(`Joined team with id: ${teamID}`);
-    if (data) {
+    });
+    if (isTeam(data)) {
+      console.log(`Joined team with id: ${teamID}`);
       setYourTeams([...yourTeams, data]);
       setJoinableTeams(joinableTeams.filter((team) => team.id !== teamID));
-    }
-    if (error) {
-      toast({
-        title: "Error",
-        description: error,
-        variant: "destructive",
-      });
     }
   };
 
   // On every page refresh, set yourTeams and joinableTeams
   useEffect(() => {
     const getUserTeams = async () => {
-      // This code is ugly, but needs to be done for the refresh.
-      // It works, but we need better code
-      const { data, error, response } = await slotifyClient.GET(
-        "/api/teams/me",
-        {},
-      );
-      if (error && response.status == 401) {
-        const { error, response } = await slotifyClient.POST(
-          "/api/refresh",
-          {},
-        );
-        if (response.status == 401) {
-          // The refresh token was invalid, could not refresh
-          // so back to login. This has to be done for every fetch
-          window.location.href = "/login";
-        } else if (response.status == 201) {
-          //retry the /user route
-          const { data, error, response } = await slotifyClient.GET(
-            "/api/teams/me",
-            {},
-          );
-          if (response.status == 401) {
-            //MSAL client may no longer have user in cache, no other option other than
-            //to log out
-            await slotifyClient.POST("/api/users/me/logout", {});
-            window.location.href = "/login";
-          }
-          if (error) {
-            toast({
-              title: "Error",
-              description: error,
-              variant: "destructive",
-            });
-          } else if (data) {
-            setYourTeams(data);
-          }
-        } else if (error) {
-          toast({
-            title: "Error",
-            description: error,
-            variant: "destructive",
-          });
-        }
-      } else if (data) {
-        setYourTeams(data);
+      const teamRoute = "/api/teams/me";
+      const teamsData = await fetchHelpers.getAPIrouteData(teamRoute, {})
+      if (Array.isArray(teamsData)) {
+        setYourTeams(teamsData);
       }
     };
+
     const getJoinableTeams = async () => {
-      const { data, error } = await slotifyClient.GET("/api/teams/joinable/me");
-      if (data) {
-        setJoinableTeams(data);
-      }
-      if (error) {
-        toast({
-          title: "Error",
-          description: error,
-          variant: "destructive",
-        });
+      const joinableTeamsRoute = "/api/teams/joinable/me";
+      const joinableTeamsData = await fetchHelpers.getAPIrouteData(joinableTeamsRoute, {});
+      if (Array.isArray(joinableTeamsData)) {
+        setJoinableTeams(joinableTeamsData);
       }
     };
+
     const getTeamMembers = async () => {
       if (!selectedTeam) {
         return;
       }
       const teamID = selectedTeam?.id;
-      const { data, error } = await slotifyClient.GET(
-        "/api/teams/{teamID}/users",
-        {
-          params: {
-            path: { teamID: teamID },
-          },
+      const teamMembersRoute = "/api/teams/{teamID}/users";
+      const teamMemberData = await fetchHelpers.getAPIrouteData(teamMembersRoute, {
+        params: {
+          path: { teamID: teamID },
         },
-      );
-      if (data) {
-        setMembers(data);
-      }
-      if (error) {
-        toast({
-          title: "Error",
-          description: error,
-          variant: "destructive",
-        });
+      });
+      if (Array.isArray(teamMemberData)) {
+        setMembers(teamMemberData);
       }
     };
 

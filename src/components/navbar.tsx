@@ -15,6 +15,7 @@ import NotificationBell from "./notification-bell";
 import Link from "next/link";
 
 import { Avatar, AvatarFallback, AvatarImage } from "@/components/ui/avatar";
+import fetchHelpers from "@/hooks/fetchHelpers";
 
 const navigation = [
   { name: "Dashboard", href: "/dashboard", current: true },
@@ -28,9 +29,13 @@ function classNames(...classes: (string | undefined | null | false)[]) {
 
 export default function Navbar() {
   const handleLogout = async () => {
-    const { error } = await slotifyClient.POST("/api/users/me/logout", {});
-    if (error) {
-      console.log(`error: ${JSON.stringify(error)}`);
+    try {
+      const { error } = await slotifyClient.POST("/api/users/me/logout", {});
+      if (error) {
+        console.log(`error: ${JSON.stringify(error)}`);
+      }
+    } catch (error) {
+      fetchHelpers.toastDestructiveError(error as undefined)
     }
 
     // Want to redirect the user back to the home page

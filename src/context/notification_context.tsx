@@ -1,8 +1,7 @@
 "use client";
 import { toast } from "@/hooks/use-toast";
 import React, { useEffect, createContext, useContext, useState } from "react";
-
-import slotifyClient from "@/hooks/fetch";
+import fetchHelpers from "@/hooks/fetchHelpers";
 
 export interface Notification {
   id: number;
@@ -30,18 +29,10 @@ export function NotificationProvider({
 
   useEffect(() => {
     const getUnreadNotifs = async () => {
-      const { data, error } = await slotifyClient.GET(
-        "/api/users/me/notifications",
-      );
-      if (error) {
-        toast({
-          title: "Error",
-          description: error,
-          variant: "destructive",
-        });
-      }
-      if (data) {
-        setNotifications((prev) => [...prev, ...data]);
+      const notifRoute = "/api/users/me/notifications";
+      const notifData = await fetchHelpers.getAPIrouteData(notifRoute, {});
+      if (Array.isArray(notifData)) {
+        setNotifications((prev) => [...prev, ...notifData]);
       }
     };
     getUnreadNotifs();
@@ -70,24 +61,16 @@ export function NotificationProvider({
 
   async function markAsRead(notification_id: number): Promise<void> {
     console.log(`postNotificationRead, notificationID: ${notification_id}`);
-    const { data, error } = await slotifyClient.PATCH(
-      "/api/notifications/{notificationID}/read",
-      {
-        params: {
-          path: { notificationID: notification_id },
-        },
+    const readnotifRoute = "/api/notifications/{notificationID}/read";
+    const readnotifData = await fetchHelpers.patchAPIrouteData(readnotifRoute, {
+      params: {
+        path: { notificationID: notification_id },
       },
-    );
-    if (data) {
+    });
+    if (readnotifData) {
       setNotifications(notifications.filter((n) => n.id !== notification_id));
       toast({
-        title: data,
-      });
-    } else {
-      toast({
-        title: "Error",
-        description: error,
-        variant: "destructive",
+        title: JSON.stringify(readnotifData),
       });
     }
   }

@@ -25,10 +25,10 @@ import { Avatar, AvatarFallback, AvatarImage } from "@/components/ui/avatar";
 import { Calendar } from "@/components/ui/calendar";
 import { cn } from "@/lib/utils";
 import { Team } from "../team-list";
-import slotifyClient from "@/hooks/fetch";
 import { toast } from "@/hooks/use-toast";
 import { Attendee } from "@/components/calendar/calendar";
 import { Check, ChevronDown, Search, User } from "lucide-react";
+import fetchHelpers from "@/hooks/fetchHelpers";
 
 interface CreateEventDialogProps {
   open: boolean;
@@ -70,7 +70,8 @@ export function CreateEventDialog({
     if (!description) {
       description = "Calendar description default";
     }
-    const { data, error } = await slotifyClient.POST("/api/calendar/me", {
+    const calRoute = "/api/calendar/me";
+    const calRouteData = await fetchHelpers.postAPIrouteData(calRoute, {
       body: {
         attendees,
         subject: eventTitle,
@@ -79,14 +80,7 @@ export function CreateEventDialog({
         endTime,
       },
     });
-    if (error) {
-      toast({
-        title: "Error",
-        description: error,
-        variant: "destructive",
-      });
-    }
-    if (data) {
+    if (calRouteData) {
       toast({
         title: "Successfully scheduled meeting",
       });
@@ -96,49 +90,10 @@ export function CreateEventDialog({
     const getUserTeams = async () => {
       // This code is ugly, but needs to be done for the refresh.
       // It works, but we need better code
-      const { data, error, response } = await slotifyClient.GET(
-        "/api/teams/me",
-        {},
-      );
-      if (error && response.status == 401) {
-        const { error, response } = await slotifyClient.POST(
-          "/api/refresh",
-          {},
-        );
-        if (response.status == 401) {
-          // The refresh token was invalid, could not refresh
-          // so back to login. This has to be done for every fetch
-          window.location.href = "/login";
-        } else if (response.status == 201) {
-          //retry the /user route
-          const { data, error, response } = await slotifyClient.GET(
-            "/api/teams/me",
-            {},
-          );
-          if (response.status == 401) {
-            //MSAL client may no longer have user in cache, no other option other than
-            //to log out
-            await slotifyClient.POST("/api/users/me/logout", {});
-            window.location.href = "/login";
-          }
-          if (error) {
-            toast({
-              title: "Error",
-              description: error,
-              variant: "destructive",
-            });
-          } else if (data) {
-            setYourTeams(data);
-          }
-        } else if (error) {
-          toast({
-            title: "Error",
-            description: error,
-            variant: "destructive",
-          });
-        }
-      } else if (data) {
-        setYourTeams(data);
+      const teamsRoute = "/api/teams/me";
+      const teamsData = await fetchHelpers.getAPIrouteData(teamsRoute, {});
+      if (Array.isArray(teamsData)) {
+        setYourTeams(teamsData);
       }
     };
     const getTeamMembers = async () => {
@@ -146,23 +101,14 @@ export function CreateEventDialog({
         return;
       }
       const teamID = selectedTeam?.id;
-      const { data, error } = await slotifyClient.GET(
-        "/api/teams/{teamID}/users",
-        {
-          params: {
-            path: { teamID: teamID },
-          },
+      const teamUsersRoute = "/api/teams/{teamID}/users";
+      const teamUsersData = await fetchHelpers.getAPIrouteData(teamUsersRoute, {
+        params: {
+          path: { teamID: teamID },
         },
-      );
-      if (data) {
-        setMembers(data);
-      }
-      if (error) {
-        toast({
-          title: "Error",
-          description: error,
-          variant: "destructive",
-        });
+      });
+      if (Array.isArray(teamUsersData)) {
+        setMembers(teamUsersData);
       }
     };
 

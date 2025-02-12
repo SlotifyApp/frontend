@@ -22,9 +22,8 @@ import {
   DialogTrigger,
 } from "@/components/ui/dialog";
 import { Input } from "@/components/ui/input";
-import slotifyClient from "@/hooks/fetch";
 import { Team } from "./team-list";
-import { toast } from "@/hooks/use-toast";
+import fetchHelpers from "@/hooks/fetchHelpers";
 
 const formSchema = z.object({
   name: z.string().min(2, {
@@ -48,22 +47,22 @@ export function ProfileForm({ teams, onSetYourTeamsAction }: ProfileFormProps) {
 
   // 2. Define a submit handler.
   async function onSubmit(values: z.infer<typeof formSchema>) {
-    const { data, error } = await slotifyClient.POST("/api/teams", {
-      body: { name: values.name },
-    });
-
-    if (data) {
-      // successful so add team to list of your teams
-      onSetYourTeamsAction([data, ...teams]);
+    const teamsRoute = "/api/teams";
+    const teamPostData = await fetchHelpers.postAPIrouteData(teamsRoute, { body: { name: values.name } });
+    // Type Guard to check if calendar Data is of interface type "CalendarEvent"
+    function isValidData(data: unknown): data is { id : number, name : string } {
+      if (typeof data != "object" || data == null) {
+        return false;
+      }
+      const obj = data as Record<string, unknown>;
+      return (
+        "id" in obj && typeof obj.id === "number" &&
+        "name" in obj && typeof obj.name == "string"
+      );
     }
-    if (error) {
-      toast({
-        title: "Error",
-        description: error,
-        variant: "destructive",
-      });
+    if (isValidData(teamPostData)) {
+      onSetYourTeamsAction([teamPostData, ...teams]);
     }
-
     console.log(values);
   }
   return (
